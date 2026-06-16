@@ -1,27 +1,98 @@
 """
 graph_renderer.py
-=================
-Graph visualization and rendering utilities.
 
-Generates DOT (Graphviz) format and can export to SVG/PNG.
-Also provides ASCII art representation for terminal display.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+================================================================================
+Graph Visualization and Rendering Utilities
+
+Generates DOT (Graphviz) format, SVG, ASCII art, and JSON for interactive web
+visualization.
+================================================================================
 """
 
 from __future__ import annotations
-from typing import Optional, Callable
+
+import json
+import math
+import random
+from typing import Any, Callable, Optional
+
 from graph import Graph, Node, Edge
 
 
 class GraphRenderer:
     """
-    Renders a Graph in various formats: DOT, SVG, ASCII art.
+    Renders a Graph in various formats: DOT, SVG, ASCII art, and JSON.
 
-    This class does NOT require graphviz to be installed for DOT generation.
-    It only needs graphviz CLI tools for PNG/SVG rendering (optional).
+    Supports:
+    - ASCII art (terminal preview)
+    - DOT format (Graphviz)
+    - SVG (embedded with force-directed layout)
+    - JSON (for interactive web visualization)
     """
 
     def __init__(self, graph: Graph) -> None:
         self.graph = graph
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  JSON Export (for interactive web visualization)
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def to_json(self) -> str:
+        """
+        Export graph to JSON format for interactive web visualization.
+
+        Returns
+        -------
+        str
+            JSON string with nodes and edges information
+        """
+        nodes_list = []
+        edges_list = []
+
+        # Export nodes
+        for node in self.graph.nodes():
+            nodes_list.append({
+                "id": str(node.node_id),
+                "label": str(node.node_id),
+                "data": node.data,
+                "attrs": node.attrs(),
+            })
+
+        # Export edges
+        seen = set()
+        for edge in self.graph.edges():
+            src_id = str(edge.src.node_id)
+            dst_id = str(edge.dst.node_id)
+            key = (src_id, dst_id, edge.edge_id)
+
+            if key not in seen:
+                seen.add(key)
+                edges_list.append({
+                    "source": src_id,
+                    "target": dst_id,
+                    "weight": edge.weight,
+                    "label": f"{edge.weight}" if edge.weight != 1.0 else "",
+                    "attrs": edge.attrs(),
+                })
+
+        return json.dumps({
+            "name": self.graph.name,
+            "directed": self.graph.directed,
+            "nodes": nodes_list,
+            "edges": edges_list,
+        }, indent=2)
 
     # ══════════════════════════════════════════════════════════════════════════
     #  DOT Format (Graphviz source code)
@@ -42,24 +113,16 @@ class GraphRenderer:
         rankdir : str
             Graph direction: "TB" (top→bottom), "LR" (left→right), "RL", "BT"
         node_attrs : dict, optional
-            Default attributes for all nodes (e.g. {"style": "filled", "color": "lightblue"})
+            Default attributes for all nodes
         edge_attrs : dict, optional
-            Default attributes for all edges (e.g. {"color": "gray"})
+            Default attributes for all edges
         node_labeler : callable, optional
-            Function(node) -> str to customize node labels.
-            Default is node.node_id.
+            Function(node) -> str to customize node labels
 
         Returns
         -------
         str
-            DOT source code ready for graphviz or online renderers.
-
-        Examples
-        --------
-        >>> g = Graph()
-        >>> g.add_edge("A", "B", weight=5)
-        >>> dot = GraphRenderer(g).to_dot(rankdir="LR")
-        >>> print(dot)  # Copy-paste into https://dreampuf.github.io/GraphvizOnline/
+            DOT source code
         """
         if node_attrs is None:
             node_attrs = {}
@@ -95,7 +158,6 @@ class GraphRenderer:
             src_id = edge.src.node_id
             dst_id = edge.dst.node_id
 
-            # Avoid duplicate edges in undirected graphs
             edge_key = tuple(sorted([src_id, dst_id])) if not self.graph.directed else (src_id, dst_id)
             if edge_key in seen_edges:
                 continue
@@ -115,14 +177,12 @@ class GraphRenderer:
 
     def to_ascii(self, max_width: int = 100) -> str:
         """
-        Generate a simple ASCII art representation of the graph.
-
-        Useful for quick inspection in the terminal without graphviz.
+        Generate ASCII art representation of the graph.
 
         Parameters
         ----------
         max_width : int
-            Maximum line width (wraps long node lists).
+            Maximum line width
 
         Returns
         -------
@@ -158,37 +218,28 @@ class GraphRenderer:
         node_size: int = 40,
     ) -> str:
         """
-        Generate a simple SVG visualization.
-
-        Uses a basic force-directed layout approximation.
-        For production-grade layouts, use to_dot() + graphviz CLI.
+        Generate SVG visualization with force-directed layout.
 
         Parameters
         ----------
         width, height : int
-            Canvas dimensions.
+            Canvas dimensions
         node_size : int
-            Radius of node circles.
+            Node radius
 
         Returns
         -------
         str
-            SVG markup (valid XML).
+            SVG markup
         """
-        import math
-        import random
-
-        random.seed(42)  # Reproducible layout
-
-        # Simple force-directed layout (iteration-based)
+        random.seed(42)
         nodes = list(self.graph.nodes())
         if not nodes:
             return '<svg></svg>'
 
-        # Initial random positions
         pos = {n.node_id: [random.uniform(50, width - 50), random.uniform(50, height - 50)] for n in nodes}
 
-        # Few iterations of attraction/repulsion
+        # Force-directed layout iterations
         for _ in range(10):
             for i, n1 in enumerate(nodes):
                 fx, fy = 0, 0
@@ -198,11 +249,9 @@ class GraphRenderer:
                     dx = pos[n2.node_id][0] - pos[n1.node_id][0]
                     dy = pos[n2.node_id][1] - pos[n1.node_id][1]
                     dist = math.sqrt(dx**2 + dy**2) + 1e-3
-                    # Repulsion
                     fx -= (dx / dist) * 100 / (dist**2 + 1)
                     fy -= (dy / dist) * 100 / (dist**2 + 1)
 
-                # Attraction to adjacent nodes
                 for neighbor in self.graph.neighbors(n1.node_id):
                     dx = pos[neighbor.node_id][0] - pos[n1.node_id][0]
                     dy = pos[neighbor.node_id][1] - pos[n1.node_id][1]
@@ -213,18 +262,16 @@ class GraphRenderer:
                 pos[n1.node_id][0] = max(node_size, min(width - node_size, pos[n1.node_id][0] + fx * 0.1))
                 pos[n1.node_id][1] = max(node_size, min(height - node_size, pos[n1.node_id][1] + fy * 0.1))
 
-        # Build SVG
         svg_lines = [
             f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">',
-            f'  <style>',
-            f'    .node {{ fill: #b3d9ff; stroke: #0066cc; stroke-width: 2; }}',
-            f'    .node-label {{ font-family: Arial; font-size: 12px; text-anchor: middle; dominant-baseline: middle; }}',
-            f'    .edge {{ stroke: #666; stroke-width: 1.5; }}',
-            f'    .edge-label {{ font-family: Arial; font-size: 10px; fill: #666; }}',
-            f'  </style>',
+            f'<style>',
+            f'  .node {{ fill: #b3d9ff; stroke: #0066cc; stroke-width: 2; }}',
+            f'  .node-label {{ font-family: Arial; font-size: 12px; text-anchor: middle; dominant-baseline: middle; }}',
+            f'  .edge {{ stroke: #666; stroke-width: 1.5; }}',
+            f'  .edge-label {{ font-family: Arial; font-size: 10px; fill: #666; }}',
+            f'</style>',
         ]
 
-        # Edges
         seen = set()
         for edge in self.graph.edges():
             key = (edge.src.node_id, edge.dst.node_id)
@@ -233,20 +280,15 @@ class GraphRenderer:
             seen.add(key)
             x1, y1 = pos[edge.src.node_id]
             x2, y2 = pos[edge.dst.node_id]
-            svg_lines.append(f'  <line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" class="edge"/>')
+            svg_lines.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" class="edge"/>')
             if edge.weight != 1.0:
                 mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-                svg_lines.append(
-                    f'  <text x="{mx}" y="{my - 5}" class="edge-label">{edge.weight}</text>'
-                )
+                svg_lines.append(f'<text x="{mx}" y="{my - 5}" class="edge-label">{edge.weight}</text>')
 
-        # Nodes
         for node in nodes:
             x, y = pos[node.node_id]
-            svg_lines.append(f'  <circle cx="{x}" cy="{y}" r="{node_size}" class="node"/>')
-            svg_lines.append(
-                f'  <text x="{x}" y="{y}" class="node-label">{node.node_id}</text>'
-            )
+            svg_lines.append(f'<circle cx="{x}" cy="{y}" r="{node_size}" class="node"/>')
+            svg_lines.append(f'<text x="{x}" y="{y}" class="node-label">{node.node_id}</text>')
 
         svg_lines.append("</svg>")
         return "\n".join(svg_lines)
@@ -257,16 +299,12 @@ class GraphRenderer:
 
     @staticmethod
     def _attrs_to_dot(attrs: dict[str, str]) -> str:
-        """Convert a dict to DOT attribute format: key="value", key="value", ..."""
+        """Convert dict to DOT attribute format."""
         if not attrs:
             return ""
         pairs = [f'{k}="{v}"' for k, v in attrs.items()]
         return ", ".join(pairs)
 
-
-# ───────────────────────────────────────────────────────────────────────────────
-#  Convenience function
-# ───────────────────────────────────────────────────────────────────────────────
 
 def render_graph(
     graph: Graph,
@@ -280,7 +318,7 @@ def render_graph(
     ----------
     graph : Graph
     format : str
-        "ascii", "dot", or "svg"
+        "ascii", "dot", "svg", or "json"
     rankdir : str
         Graph direction (for DOT format)
 
@@ -296,12 +334,15 @@ def render_graph(
         return renderer.to_dot(rankdir=rankdir)
     elif format == "svg":
         return renderer.to_svg()
+    elif format == "json":
+        return renderer.to_json()
     else:
         raise ValueError(f"Unknown format: {format}")
 
 
 if __name__ == "__main__":
-    # Quick demo
+    from graph import Graph
+
     g = Graph(directed=True, name="Demo")
     g.add_edge("A", "B", weight=2.5)
     g.add_edge("B", "C", weight=3.0)
@@ -310,8 +351,8 @@ if __name__ == "__main__":
     print("=== ASCII ===")
     print(render_graph(g, "ascii"))
     print()
-    print("=== DOT (copy to https://dreampuf.github.io/GraphvizOnline/) ===")
-    print(render_graph(g, "dot"))
+    print("=== DOT ===")
+    print(render_graph(g, "dot")[:200])
     print()
-    print("=== SVG ===")
-    print(render_graph(g, "svg")[:200], "...[truncated]")
+    print("=== JSON ===")
+    print(render_graph(g, "json"))

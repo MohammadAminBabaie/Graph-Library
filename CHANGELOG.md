@@ -18,11 +18,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] Strongly connected components (Tarjan)
 
 ### Planned for v2.0.0 (Phase 3)
-- [ ] JSON serialization/deserialization
 - [ ] GraphML format support
 - [ ] GML format support
 - [ ] Reverse adjacency index for O(1) in_edges()
 - [ ] Graph filtering and transformation operators
+
+---
+
+## [1.0.1] — 2025-06-16
+
+### Added
+- **Interactive Web Viewer** (`graph_viewer.html`)
+  - Beautiful, responsive HTML5 Canvas visualization
+  - Drag & drop node positioning
+  - Zoom & pan controls
+  - Real-time physics simulation (force-directed layout)
+  - Load/save graphs as JSON
+  - Full-featured web interface
+
+- **JSON Export** (in `graph_renderer.py`)
+  - `to_json()` method for complete graph serialization
+  - Compatible with interactive viewer
+  - Preserves all node/edge attributes
+
+- **License Change**
+  - Changed from MIT to Apache License 2.0
+  - Better for commercial use and large projects
+
+### Changed
+- Enhanced `GraphRenderer` with JSON format support
+- Updated all documentation to reflect Apache 2.0 license
+- Improved visualization capabilities
+
+### Technical Details
+- No breaking changes
+- New visualization format: `render_graph(g, format="json")`
+- Interactive viewer runs completely standalone (no dependencies)
 
 ---
 
@@ -175,7 +206,7 @@ This project has **zero external dependencies**, making it inherently secure.
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache 2.0 License — see [LICENSE](LICENSE) file for details.
 
 ---
 

@@ -4,7 +4,7 @@
 
 A professional, production-ready Python graph data structure library with comprehensive documentation, visualization tools, and real-world examples.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache 2.0-yellow.svg)](https://opensource.org/licenses/Apache 2.0)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Type Checked: MyPy](https://img.shields.io/badge/type%20checked-mypy-2A6DB2)](http://mypy-lang.org/)
@@ -393,7 +393,7 @@ Please open an issue or submit a pull request.
 
 ## License
 
-MIT License — free to use, modify, and distribute.  
+Apache 2.0 License — free to use, modify, and distribute.  
 See [LICENSE](LICENSE) for details.
 
 ---

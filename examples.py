@@ -457,6 +457,73 @@ def example_ecommerce_system():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  Example 8: Interactive Web Viewer
+# ══════════════════════════════════════════════════════════════════════════════
+
+def example_interactive_web_viewer():
+    """
+    Export a graph to JSON and view it interactively in a web browser.
+    Demonstrates the new graph_viewer.html visualization tool.
+    """
+    print("=" * 70)
+    print("EXAMPLE 8: Interactive Web Viewer — JSON Export")
+    print("=" * 70)
+    print()
+
+    from graph_renderer import render_graph
+
+    # Create a simple graph
+    g = Graph(directed=True, name="InteractiveDemo")
+
+    g.add_node("Server1", data={"status": "online"}, color="green")
+    g.add_node("Server2", data={"status": "online"}, color="green")
+    g.add_node("Server3", data={"status": "offline"}, color="red")
+    g.add_node("Database", data={"type": "primary"}, color="blue")
+
+    g.add_edge("Server1", "Server2", weight=1.5)
+    g.add_edge("Server2", "Database", weight=2.0)
+    g.add_edge("Server1", "Server3", weight=3.0)
+    g.add_edge("Database", "Server3", weight=2.5)
+
+    print("Graph Created:")
+    print(render_graph(g, format="ascii"))
+    print()
+
+    # Export to JSON
+    json_data = render_graph(g, format="json")
+
+    print("JSON Export (first 500 chars):")
+    print(json_data[:500])
+    print("...")
+    print()
+
+    # Save to file
+    filename = "interactive_demo.json"
+    with open(filename, "w") as f:
+        f.write(json_data)
+
+    print(f"✓ Graph saved to {filename}")
+    print()
+
+    print("How to use the Interactive Viewer:")
+    print("1. Open graph_viewer.html in your web browser")
+    print("2. Click 'Load JSON' button")
+    print("3. Select the interactive_demo.json file")
+    print("4. Drag nodes to reposition them")
+    print("5. Scroll to zoom in/out")
+    print()
+
+    print("Features:")
+    print("  • Beautiful force-directed layout")
+    print("  • Drag & drop node positioning")
+    print("  • Real-time physics simulation")
+    print("  • Graph statistics display")
+    print("  • Zoom & pan controls")
+    print("  • Export back to JSON")
+    print()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  Main runner
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -468,6 +535,7 @@ EXAMPLES = {
     "self_loop_state": example_self_loop_state_machine,
     "copy_subgraph": example_copy_and_subgraph,
     "ecommerce": example_ecommerce_system,
+    "interactive_viewer": example_interactive_web_viewer,
 }
 
 

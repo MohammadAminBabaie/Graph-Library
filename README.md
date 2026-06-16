@@ -446,6 +446,39 @@ g._adj             # dict[node_id -> list[Edge]] (internal)
 
 ## Visualization
 
+### 🌐 Interactive Web Viewer (NEW!)
+
+Beautiful, interactive visualization with drag & drop support.
+
+**Usage:**
+1. Export your graph to JSON:
+   ```python
+   from graph_renderer import render_graph
+   
+   g = Graph(directed=True)
+   g.add_edge("A", "B", weight=5)
+   g.add_edge("B", "C", weight=3)
+   
+   json_data = render_graph(g, format="json")
+   
+   # Save to file
+   with open("mygraph.json", "w") as f:
+       f.write(json_data)
+   ```
+
+2. Open `graph_viewer.html` in a web browser
+
+3. Load your JSON file using the "Load JSON" button
+
+**Features:**
+- ✅ Drag nodes to reposition them
+- ✅ Scroll to zoom in/out
+- ✅ Beautiful force-directed layout
+- ✅ Real-time graph statistics
+- ✅ Export graphs as JSON
+- ✅ Fully standalone (no dependencies)
+- ✅ Works in any modern web browser
+
 ### ASCII Art (Quick Preview)
 
 No dependencies. Print in terminal for fast inspection.
