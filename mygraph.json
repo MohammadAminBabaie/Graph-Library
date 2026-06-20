@@ -1,0 +1,12 @@
+graph G {
+  rankdir="TB";
+  node [shape=box, ];
+  edge [];
+
+  "A" [label="A"];
+  "B" [label="B"];
+  "C" [label="C"];
+
+  "A" -- "B" [label="5"];
+  "B" -- "C" [label="3"];
+}

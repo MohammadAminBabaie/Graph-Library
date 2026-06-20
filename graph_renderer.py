@@ -1,24 +1,13 @@
 """
-graph_renderer.py
+graph_renderer.py - تمام فرمت‌های رندرینگ
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Licensed under Apache License 2.0
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-================================================================================
-Graph Visualization and Rendering Utilities
-
-Generates DOT (Graphviz) format, SVG, ASCII art, and JSON for interactive web
-visualization.
-================================================================================
+فرمت‌های پشتیبانی شده:
+- ASCII (پیش‌نمایش ترمینال)
+- DOT (Graphviz)
+- SVG (وب)
+- JSON (Interactive viewer)
 """
 
 from __future__ import annotations
@@ -32,36 +21,20 @@ from graph import Graph, Node, Edge
 
 
 class GraphRenderer:
-    """
-    Renders a Graph in various formats: DOT, SVG, ASCII art, and JSON.
-
-    Supports:
-    - ASCII art (terminal preview)
-    - DOT format (Graphviz)
-    - SVG (embedded with force-directed layout)
-    - JSON (for interactive web visualization)
-    """
+    """رندرینگ گراف در قالب‌های مختلف"""
 
     def __init__(self, graph: Graph) -> None:
         self.graph = graph
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  JSON Export (for interactive web visualization)
+    #  JSON Export (برای web viewer)
     # ══════════════════════════════════════════════════════════════════════════
 
     def to_json(self) -> str:
-        """
-        Export graph to JSON format for interactive web visualization.
-
-        Returns
-        -------
-        str
-            JSON string with nodes and edges information
-        """
+        """صادرات گراف به JSON"""
         nodes_list = []
         edges_list = []
 
-        # Export nodes
         for node in self.graph.nodes():
             nodes_list.append({
                 "id": str(node.node_id),
@@ -70,7 +43,6 @@ class GraphRenderer:
                 "attrs": node.attrs(),
             })
 
-        # Export edges
         seen = set()
         for edge in self.graph.edges():
             src_id = str(edge.src.node_id)
@@ -79,11 +51,13 @@ class GraphRenderer:
 
             if key not in seen:
                 seen.add(key)
+                label = f"{edge.name}({edge.weight})" if edge.weight != 1.0 else edge.name
                 edges_list.append({
                     "source": src_id,
                     "target": dst_id,
+                    "name": edge.name,
                     "weight": edge.weight,
-                    "label": f"{edge.weight}" if edge.weight != 1.0 else "",
+                    "label": label,
                     "attrs": edge.attrs(),
                 })
 
@@ -95,34 +69,29 @@ class GraphRenderer:
         }, indent=2)
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  DOT Format (Graphviz source code)
+    #  DOT Format with save/load
     # ══════════════════════════════════════════════════════════════════════════
 
     def to_dot(
         self,
         rankdir: str = "TB",
+        show_node_labels: bool = True,
+        show_edge_labels: bool = True,
         node_attrs: Optional[dict[str, str]] = None,
         edge_attrs: Optional[dict[str, str]] = None,
         node_labeler: Optional[Callable[[Node], str]] = None,
     ) -> str:
         """
-        Generate a DOT (Graphviz) representation of the graph.
-
+        صادرات گراف به فرمت DOT
+        
         Parameters
         ----------
         rankdir : str
-            Graph direction: "TB" (top→bottom), "LR" (left→right), "RL", "BT"
-        node_attrs : dict, optional
-            Default attributes for all nodes
-        edge_attrs : dict, optional
-            Default attributes for all edges
-        node_labeler : callable, optional
-            Function(node) -> str to customize node labels
-
-        Returns
-        -------
-        str
-            DOT source code
+            جهت: TB, LR, BT, RL
+        show_node_labels : bool
+            نمایش لیبل گره‌ها
+        show_edge_labels : bool
+            نمایش لیبل یال‌ها (نام و وزن)
         """
         if node_attrs is None:
             node_attrs = {}
@@ -140,19 +109,17 @@ class GraphRenderer:
         lines.append(f'  edge [{self._attrs_to_dot(edge_attrs)}];')
         lines.append("")
 
-        # Render nodes
+        # گره‌ها
         for node in self.graph.nodes():
-            label = node_labeler(node)
-            attrs = {
-                "label": label,
-                **(node.get_attr("_dot_attrs") or {}),
-            }
+            label = node_labeler(node) if show_node_labels else ""
+            attrs = {"label": label} if show_node_labels else {}
+            attrs.update(node.get_attr("_dot_attrs") or {})
             attrs_str = self._attrs_to_dot(attrs)
             lines.append(f'  "{node.node_id}" [{attrs_str}];')
 
         lines.append("")
 
-        # Render edges
+        # یال‌ها
         seen_edges = set()
         for edge in self.graph.edges():
             src_id = edge.src.node_id
@@ -163,33 +130,59 @@ class GraphRenderer:
                 continue
             seen_edges.add(edge_key)
 
-            label = f"{edge.weight}" if edge.weight != 1.0 else ""
-            attrs = {"label": label, **(edge.get_attr("_dot_attrs") or {})}
+            if show_edge_labels:
+                label = f"{edge.name}({edge.weight})"
+            else:
+                label = ""
+            
+            attrs = {"label": label} if show_edge_labels else {}
+            attrs.update(edge.get_attr("_dot_attrs") or {})
             attrs_str = self._attrs_to_dot(attrs)
             lines.append(f'  "{src_id}" {edge_op} "{dst_id}" [{attrs_str}];')
 
         lines.append("}")
         return "\n".join(lines)
 
+    def save_to_dot(self, filename: str, **kwargs: Any) -> None:
+        """ذخیره‌ی گراف به فایل DOT"""
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(self.to_dot(**kwargs))
+
+    @staticmethod
+    def load_from_dot(filename: str) -> Graph:
+        """لود کردن گراف از فایل DOT - تحت ساخت"""
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # تحلیل ساده DOT
+        is_directed = "digraph" in content
+        g = Graph(directed=is_directed)
+        
+        # استخراج گره‌ها (ساده)
+        import re
+        node_pattern = r'"([^"]+)"'
+        nodes = set(re.findall(node_pattern, content))
+        for node_id in nodes:
+            g.add_node(node_id)
+        
+        # استخراج یال‌ها
+        edge_pattern = r'"([^"]+)"\s*(?:->|--)\s*"([^"]+)"'
+        edges = re.findall(edge_pattern, content)
+        for src, dst in edges:
+            if src in nodes and dst in nodes:
+                g.add_edge(src, dst, auto_add_nodes=False)
+        
+        return g
+
     # ══════════════════════════════════════════════════════════════════════════
-    #  ASCII Art Representation
+    #  ASCII Art
     # ══════════════════════════════════════════════════════════════════════════
 
     def to_ascii(self, max_width: int = 100) -> str:
-        """
-        Generate ASCII art representation of the graph.
-
-        Parameters
-        ----------
-        max_width : int
-            Maximum line width
-
-        Returns
-        -------
-        str
-        """
+        """نمایش ASCII"""
+        kind = "جهت‌دار" if self.graph.directed else "بدون‌جهت"
         lines = [
-            f"Graph: {self.graph.name} ({['Directed', 'Undirected'][not self.graph.directed]})",
+            f"Graph: {self.graph.name} ({kind})",
             f"Nodes: {self.graph.order()} | Edges: {self.graph.size()}",
             "",
         ]
@@ -202,36 +195,18 @@ class GraphRenderer:
         lines.append("")
         for edge in self.graph.edges():
             op = "->" if self.graph.directed else "--"
+            label = f" [{edge.name}]" if edge.name else ""
             weight_str = f" (w={edge.weight})" if edge.weight != 1.0 else ""
-            lines.append(f"  {edge.src.node_id} {op} {edge.dst.node_id}{weight_str}")
+            lines.append(f"  {edge.src.node_id} {op} {edge.dst.node_id}{label}{weight_str}")
 
         return "\n".join(lines)
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  SVG (simple embedded version)
+    #  SVG
     # ══════════════════════════════════════════════════════════════════════════
 
-    def to_svg(
-        self,
-        width: int = 800,
-        height: int = 600,
-        node_size: int = 40,
-    ) -> str:
-        """
-        Generate SVG visualization with force-directed layout.
-
-        Parameters
-        ----------
-        width, height : int
-            Canvas dimensions
-        node_size : int
-            Node radius
-
-        Returns
-        -------
-        str
-            SVG markup
-        """
+    def to_svg(self, width: int = 800, height: int = 600, node_size: int = 40) -> str:
+        """تولید SVG"""
         random.seed(42)
         nodes = list(self.graph.nodes())
         if not nodes:
@@ -239,7 +214,6 @@ class GraphRenderer:
 
         pos = {n.node_id: [random.uniform(50, width - 50), random.uniform(50, height - 50)] for n in nodes}
 
-        # Force-directed layout iterations
         for _ in range(10):
             for i, n1 in enumerate(nodes):
                 fx, fy = 0, 0
@@ -264,12 +238,12 @@ class GraphRenderer:
 
         svg_lines = [
             f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">',
-            f'<style>',
-            f'  .node {{ fill: #b3d9ff; stroke: #0066cc; stroke-width: 2; }}',
-            f'  .node-label {{ font-family: Arial; font-size: 12px; text-anchor: middle; dominant-baseline: middle; }}',
-            f'  .edge {{ stroke: #666; stroke-width: 1.5; }}',
-            f'  .edge-label {{ font-family: Arial; font-size: 10px; fill: #666; }}',
-            f'</style>',
+            '<style>',
+            '.node { fill: #b3d9ff; stroke: #0066cc; stroke-width: 2; }',
+            '.node-label { font-family: Arial; font-size: 12px; text-anchor: middle; dominant-baseline: middle; }',
+            '.edge { stroke: #666; stroke-width: 1.5; }',
+            '.edge-label { font-family: Arial; font-size: 10px; fill: #666; }',
+            '</style>',
         ]
 
         seen = set()
@@ -283,7 +257,7 @@ class GraphRenderer:
             svg_lines.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" class="edge"/>')
             if edge.weight != 1.0:
                 mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-                svg_lines.append(f'<text x="{mx}" y="{my - 5}" class="edge-label">{edge.weight}</text>')
+                svg_lines.append(f'<text x="{mx}" y="{my - 5}" class="edge-label">{edge.name}({edge.weight})</text>')
 
         for node in nodes:
             x, y = pos[node.node_id]
@@ -299,7 +273,7 @@ class GraphRenderer:
 
     @staticmethod
     def _attrs_to_dot(attrs: dict[str, str]) -> str:
-        """Convert dict to DOT attribute format."""
+        """تبدیل dict به فرمت DOT"""
         if not attrs:
             return ""
         pairs = [f'{k}="{v}"' for k, v in attrs.items()]
@@ -310,49 +284,29 @@ def render_graph(
     graph: Graph,
     format: str = "ascii",
     rankdir: str = "TB",
+    **kwargs: Any
 ) -> str:
     """
-    Quick render of a graph in the specified format.
-
+    رندرینگ سریع گراف
+    
     Parameters
     ----------
     graph : Graph
     format : str
         "ascii", "dot", "svg", or "json"
     rankdir : str
-        Graph direction (for DOT format)
-
-    Returns
-    -------
-    str
-        Rendered output
+        جهت (برای DOT)
+    **kwargs
+        پارامتر‌های اضافی
     """
     renderer = GraphRenderer(graph)
     if format == "ascii":
         return renderer.to_ascii()
     elif format == "dot":
-        return renderer.to_dot(rankdir=rankdir)
+        return renderer.to_dot(rankdir=rankdir, **kwargs)
     elif format == "svg":
-        return renderer.to_svg()
+        return renderer.to_svg(**kwargs)
     elif format == "json":
         return renderer.to_json()
     else:
-        raise ValueError(f"Unknown format: {format}")
-
-
-if __name__ == "__main__":
-    from graph import Graph
-
-    g = Graph(directed=True, name="Demo")
-    g.add_edge("A", "B", weight=2.5)
-    g.add_edge("B", "C", weight=3.0)
-    g.add_edge("A", "C", weight=5.5)
-
-    print("=== ASCII ===")
-    print(render_graph(g, "ascii"))
-    print()
-    print("=== DOT ===")
-    print(render_graph(g, "dot")[:200])
-    print()
-    print("=== JSON ===")
-    print(render_graph(g, "json"))
+        raise ValueError(f"فرمت نامعلوم: {format}")

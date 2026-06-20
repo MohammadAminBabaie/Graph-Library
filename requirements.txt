@@ -1,0 +1,6 @@
+# Graph Library — Production Dependencies
+# No external dependencies required!
+# Pure Python 3.9+
+
+# Development dependencies (optional)
+# See requirements-dev.txt

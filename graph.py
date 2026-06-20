@@ -1,123 +1,103 @@
 """
-graph.py
-========
-Professional Graph Library — Phase 1 (Revised)
+graph.py - Complete Implementation
+Professional Graph Library with all features
 
-Design goals
-------------
-- Fully dynamic: nodes and edges can be added or removed at any time.
-- Clean and principled: single-responsibility classes, consistent error handling.
-- Performant: O(1) node lookup; cached in-degree; lazy edge deduplication.
-- Extensible: open attribute dictionaries on every Node and Edge.
-- Pythonic: supports `in`, `len`, `iter`, and `repr` everywhere.
+Licensed under Apache License 2.0
 
-Public API
-----------
-    Node(node_id, data, **attrs)
-    Edge(src, dst, weight, **attrs)
-    Graph(directed, name)
-        .add_node / .remove_node / .has_node / .get_node / .update_node
-        .add_edge / .remove_edge / .has_edge / .get_edges
-        .neighbors / .out_edges / .in_edges
-        .out_degree / .in_degree / .degree
-        .nodes() / .edges()
-        .order() / .size()
-        .copy() / .subgraph(node_ids) / .clear()
+Features:
+- Directed/Undirected graphs
+- Weighted edges with names
+- Multi-edges (parallel edges)
+- Self-loops
+- Batch operations (add_nodes, add_edges)
+- Advanced graph operations (__add__, __sub__, complement)
+- Enhanced __contains__ for edges and subgraphs
+- Full attribute system
 """
 
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, Optional, Union
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Exceptions
+#  EXCEPTIONS
 # ══════════════════════════════════════════════════════════════════════════════
 
 class GraphError(Exception):
-    """Base exception for all graph-related errors."""
+    """استثنای پایه برای تمام خطاهای مرتبط با گراف"""
 
 
 class NodeNotFoundError(GraphError):
     def __init__(self, node_id: Any) -> None:
-        super().__init__(f"Node not found: {node_id!r}")
+        super().__init__(f"گره پیدا نشد: {node_id!r}")
         self.node_id = node_id
 
 
 class EdgeNotFoundError(GraphError):
     def __init__(self, src_id: Any, dst_id: Any, edge_id: Optional[str] = None) -> None:
         detail = f" (edge_id={edge_id!r})" if edge_id else ""
-        super().__init__(f"Edge not found: {src_id!r} -> {dst_id!r}{detail}")
+        super().__init__(f"یال پیدا نشد: {src_id!r} -> {dst_id!r}{detail}")
         self.src_id = src_id
         self.dst_id = dst_id
 
 
 class DuplicateNodeError(GraphError):
     def __init__(self, node_id: Any) -> None:
-        super().__init__(f"Node already exists: {node_id!r}")
+        super().__init__(f"گره از قبل وجود دارد: {node_id!r}")
         self.node_id = node_id
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  AttrMixin — shared attribute store for Node and Edge
+#  ATTRIBUTE MIXIN
 # ══════════════════════════════════════════════════════════════════════════════
 
 class AttrMixin:
-    """
-    Lightweight key-value attribute store.
-    Allows any Node or Edge to carry arbitrary metadata.
-    """
+    """ذخیره‌سازی ویژگی‌های کلید-مقدار برای Node و Edge"""
 
     def __init__(self) -> None:
         self._attrs: dict[str, Any] = {}
 
     def set_attr(self, key: str, value: Any) -> None:
-        """Set a metadata attribute."""
+        """تنظیم یک ویژگی متاداتا"""
         self._attrs[key] = value
 
     def get_attr(self, key: str, default: Any = None) -> Any:
-        """Get a metadata attribute, returning *default* if missing."""
+        """دریافت یک ویژگی، بازگشت مقدار پیش‌فرض اگر موجود نباشد"""
         return self._attrs.get(key, default)
 
     def del_attr(self, key: str) -> None:
-        """Delete a metadata attribute. Raises KeyError if missing."""
+        """حذف یک ویژگی"""
         if key not in self._attrs:
-            raise KeyError(f"Attribute not found: {key!r}")
+            raise KeyError(f"ویژگی پیدا نشد: {key!r}")
         del self._attrs[key]
 
     def attrs(self) -> dict[str, Any]:
-        """Return a shallow copy of all attributes."""
+        """بازگشت کپی تمام ویژگی‌ها"""
         return dict(self._attrs)
 
     def update_attrs(self, **kwargs: Any) -> None:
-        """Bulk-update multiple attributes at once."""
+        """اپدیت دسته‌ای چندین ویژگی"""
         self._attrs.update(kwargs)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Node
+#  NODE CLASS
 # ══════════════════════════════════════════════════════════════════════════════
 
 class Node(AttrMixin):
     """
-    A vertex in the graph.
-
+    یک رأس (گره) در گراف
+    
     Parameters
     ----------
     node_id : Any hashable
-        Unique identifier for this node.
+        شناسه منحصر به فرد
     data : Any, optional
-        Arbitrary user payload (object, dict, dataclass, …).
-    **attrs :
-        Initial metadata attributes (e.g. color="red", weight=3).
-
-    Examples
-    --------
-    >>> n = Node("A", data={"population": 1_000_000}, color="blue")
-    >>> n.get_attr("color")
-    'blue'
+        بار کاربری دلخواه
+    **attrs
+        ویژگی‌های متاداتا اولیه
     """
 
     __slots__ = ("node_id", "data", "_attrs")
@@ -128,7 +108,6 @@ class Node(AttrMixin):
         self.data = data
         self._attrs.update(attrs)
 
-    # ── Dunder helpers ───────────────────────────────────────────────────────
     def __hash__(self) -> int:
         return hash(self.node_id)
 
@@ -143,41 +122,38 @@ class Node(AttrMixin):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Edge
+#  EDGE CLASS
 # ══════════════════════════════════════════════════════════════════════════════
 
 class Edge(AttrMixin):
     """
-    A directed arc between two nodes.
-
+    یک یال (کمان) بین دو گره
+    
     Parameters
     ----------
     src : Node
-        Source (tail) node.
+        گره منبع
     dst : Node
-        Destination (head) node.
+        گره مقصد
     weight : float
-        Numeric weight (default 1.0).
+        وزن یال (پیش‌فرض 1.0)
+    name : str, optional
+        نام قابل خواندن یال (مثال: "مسیر اصلی")
+        اگر ارائه نشود، به صورت "{src_id}_{dst_id}" تولید می‌شود
     edge_id : str, optional
-        Unique identifier — auto-generated if omitted.
-        Required to distinguish parallel edges (multi-graph).
-    **attrs :
-        Initial metadata attributes (e.g. capacity=100, label="road").
-
-    Notes
-    -----
-    In an undirected Graph, a reverse shadow edge is stored automatically.
-    Both the forward and reverse edge share the same base edge_id
-    (the reverse is suffixed with ``_r``).
+        شناسه منحصر به فرد - اگر ارائه نشود، تولید می‌شود
+    **attrs
+        ویژگی‌های متاداتا
     """
 
-    __slots__ = ("src", "dst", "weight", "edge_id", "_attrs")
+    __slots__ = ("src", "dst", "weight", "name", "edge_id", "_attrs")
 
     def __init__(
         self,
         src: Node,
         dst: Node,
         weight: float = 1.0,
+        name: Optional[str] = None,
         edge_id: Optional[str] = None,
         **attrs: Any,
     ) -> None:
@@ -185,19 +161,26 @@ class Edge(AttrMixin):
         self.src = src
         self.dst = dst
         self.weight = weight
+        self.name: str = name or f"{src.node_id}_{dst.node_id}"
         self.edge_id: str = edge_id or str(uuid.uuid4())[:8]
         self._attrs.update(attrs)
 
-    # ── Utilities ────────────────────────────────────────────────────────────
     def reversed(self) -> Edge:
-        """Return a new Edge with src and dst swapped (same weight & attrs)."""
-        return Edge(self.dst, self.src, self.weight, self.edge_id + "_r", **self._attrs)
+        """بازگشت یک یال جدید با src و dst معکوس"""
+        reversed_name = f"{self.name}_rev" if not self.name.endswith("_rev") else self.name
+        return Edge(
+            self.dst,
+            self.src,
+            self.weight,
+            name=reversed_name,
+            edge_id=self.edge_id + "_r",
+            **self._attrs
+        )
 
     def endpoints(self) -> tuple[Any, Any]:
-        """Return (src.node_id, dst.node_id)."""
+        """بازگشت (src.node_id, dst.node_id)"""
         return (self.src.node_id, self.dst.node_id)
 
-    # ── Dunder helpers ───────────────────────────────────────────────────────
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Edge):
             return self.edge_id == other.edge_id
@@ -207,98 +190,61 @@ class Edge(AttrMixin):
         return hash(self.edge_id)
 
     def __repr__(self) -> str:
-        return f"Edge({self.src.node_id!r} -> {self.dst.node_id!r}, w={self.weight}, id={self.edge_id!r})"
+        return f"Edge({self.src.node_id!r} -> {self.dst.node_id!r}, name={self.name!r}, w={self.weight})"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Graph
+#  GRAPH CLASS - COMPLETE VERSION
 # ══════════════════════════════════════════════════════════════════════════════
 
 class Graph:
     """
-    General-purpose graph supporting:
-
-    - **Directed** or **Undirected** mode
-    - **Weighted** edges
-    - **Multi-edges** (parallel edges between the same pair of nodes)
-    - **Self-loops** (edge from a node to itself)
-
-    Internal representation
-    -----------------------
-    ``_nodes`` : dict[node_id -> Node]
-        O(1) node lookup by id.
-    ``_adj`` : dict[node_id -> list[Edge]]
-        Adjacency list; for undirected graphs the reverse shadow edge is stored
-        under the destination node so that ``out_edges`` works symmetrically.
-    ``_in_degree_cache`` : dict[node_id -> int]
-        Cached in-degree counter updated incrementally on every add/remove.
-        Avoids O(V+E) scans for ``in_degree()``.
-
-    Parameters
-    ----------
-    directed : bool
-        ``True`` (default) for a digraph; ``False`` for an undirected graph.
-    name : str
-        Human-readable label for display / serialisation.
+    گراف جامع با پشتیبانی:
+    - گراف جهت‌دار/بدون‌جهت
+    - یال‌های وزن‌دار با نام
+    - یال‌های متوازی (multi-edge)
+    - حلقه‌های خودی
+    - عملیات دسته‌ای
+    - عملیات پیشرفته (جمع، تفریق، مکمل)
     """
 
     def __init__(self, directed: bool = True, name: str = "G") -> None:
-        self.name = name
+        """
+        ایجاد گراف جدید
+        
+        Parameters
+        ----------
+        directed : bool
+            True برای گراف جهت‌دار، False برای بدون‌جهت
+        name : str
+            نام گراف
+        """
         self.directed = directed
+        self.name = name
         self._nodes: dict[Any, Node] = {}
-        self._adj:   dict[Any, list[Edge]] = {}
+        self._adj: dict[Any, list[Edge]] = {}
         self._in_degree_cache: dict[Any, int] = {}
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  Internal helpers
-    # ══════════════════════════════════════════════════════════════════════════
-
-    def _require_node(self, node_id: Any) -> Node:
-        """Return the node or raise NodeNotFoundError."""
-        try:
-            return self._nodes[node_id]
-        except KeyError:
-            raise NodeNotFoundError(node_id)
-
-    def _inc_in_degree(self, node_id: Any, delta: int = 1) -> None:
-        self._in_degree_cache[node_id] = self._in_degree_cache.get(node_id, 0) + delta
-
-    # ══════════════════════════════════════════════════════════════════════════
-    #  1. Node operations
+    #  NODE OPERATIONS
     # ══════════════════════════════════════════════════════════════════════════
 
     def add_node(
-        self,
-        node_id: Any,
-        data: Any = None,
-        *,
-        strict: bool = False,
-        **attrs: Any,
+        self, node_id: Any, data: Any = None, *, strict: bool = False, **attrs: Any
     ) -> Node:
         """
-        Add a node to the graph and return it.
-
+        اضافه کردن یک گره
+        
         Parameters
         ----------
         node_id : Any hashable
-            Unique identifier.
+            شناسه گره
         data : Any, optional
-            User payload.
+            بار کاربری
         strict : bool
-            If ``True``, raise ``DuplicateNodeError`` when the node already exists.
-            Default is ``False`` (idempotent — existing node is returned as-is).
-        **attrs :
-            Metadata attributes for the new node.
-
-        Returns
-        -------
-        Node
-
-        Examples
-        --------
-        >>> g = Graph()
-        >>> g.add_node("A", data=42, color="red")
-        Node('A', data=42)
+            اگر True، exception اگر گره موجود باشد
+        **attrs
+            ویژگی‌های متاداتا
         """
         if node_id in self._nodes:
             if strict:
@@ -311,72 +257,60 @@ class Graph:
         self._in_degree_cache[node_id] = 0
         return node
 
+    def add_nodes(self, nodes: Any) -> None:
+        """اضافه کردن دسته‌ای از گره‌ها (Node objects یا node_ids)"""
+        for node in nodes:
+            if isinstance(node, Node):
+                self.add_node(node.node_id, node.data, **node.attrs())
+            else:
+                self.add_node(node)
+
+    def add_node_direct(self, node: Node) -> Node:
+        """اضافه کردن یک شیء Node به طور مستقیم"""
+        return self.add_node(node.node_id, node.data, **node.attrs())
+
     def remove_node(self, node_id: Any) -> Node:
-        """
-        Remove a node and every edge incident to it.
-
-        Returns
-        -------
-        Node
-            The removed node (caller may inspect its data).
-
-        Raises
-        ------
-        NodeNotFoundError
-        """
-        node = self._require_node(node_id)
-
-        # Count how many in-edges we are about to delete (for cache correctness)
-        for edge_list in self._adj.values():
-            for e in edge_list:
-                if e.dst.node_id == node_id:
-                    self._inc_in_degree(node_id, -1)
-
-        del self._nodes[node_id]
+        """حذف یک گره و تمام یال‌های مرتبط"""
+        self._require_node(node_id)
+        node = self._nodes.pop(node_id)
+        
+        # حذف یال‌های خروجی
+        for edge in list(self._adj[node_id]):
+            self._inc_in_degree(edge.dst.node_id, -1)
+            if not self.directed:
+                self._inc_in_degree(node_id, -1)
         del self._adj[node_id]
+        
+        # حذف یال‌های ورودی
+        for other_id in list(self._adj.keys()):
+            self._adj[other_id] = [
+                e for e in self._adj[other_id]
+                if e.dst.node_id != node_id
+            ]
+        
         del self._in_degree_cache[node_id]
-
-        # Remove all edges pointing to this node from other adjacency lists
-        for nid in self._adj:
-            before = len(self._adj[nid])
-            self._adj[nid] = [e for e in self._adj[nid] if e.dst.node_id != node_id]
-            removed = before - len(self._adj[nid])
-            if removed:
-                self._inc_in_degree(node_id, 0)  # no-op: node already deleted
-
         return node
 
+    def has_node(self, node_id: Any) -> bool:
+        """بررسی وجود گره"""
+        return node_id in self._nodes
+
+    def get_node(self, node_id: Any) -> Node:
+        """دریافت شیء Node"""
+        if node_id not in self._nodes:
+            raise NodeNotFoundError(node_id)
+        return self._nodes[node_id]
+
     def update_node(self, node_id: Any, data: Any = None, **attrs: Any) -> Node:
-        """
-        Update the data payload and/or attributes of an existing node.
-
-        Parameters
-        ----------
-        node_id :
-            Target node.
-        data :
-            New payload (``None`` leaves the existing payload unchanged).
-        **attrs :
-            Attributes to set or overwrite.
-
-        Returns
-        -------
-        Node
-        """
-        node = self._require_node(node_id)
+        """اپدیت یک گره"""
+        node = self.get_node(node_id)
         if data is not None:
             node.data = data
         node.update_attrs(**attrs)
         return node
 
-    def has_node(self, node_id: Any) -> bool:
-        return node_id in self._nodes
-
-    def get_node(self, node_id: Any) -> Node:
-        return self._require_node(node_id)
-
     # ══════════════════════════════════════════════════════════════════════════
-    #  2. Edge operations
+    #  EDGE OPERATIONS
     # ══════════════════════════════════════════════════════════════════════════
 
     def add_edge(
@@ -384,35 +318,12 @@ class Graph:
         src_id: Any,
         dst_id: Any,
         weight: float = 1.0,
+        name: Optional[str] = None,
         *,
         auto_add_nodes: bool = True,
         **attrs: Any,
     ) -> Edge:
-        """
-        Add a directed (or undirected) edge between two nodes.
-
-        Parameters
-        ----------
-        src_id, dst_id :
-            Node identifiers for the endpoints.
-        weight : float
-            Edge weight (default 1.0).
-        auto_add_nodes : bool
-            When ``True`` (default), missing nodes are created automatically.
-            When ``False``, a ``NodeNotFoundError`` is raised instead.
-        **attrs :
-            Metadata attributes for the new edge.
-
-        Returns
-        -------
-        Edge
-
-        Examples
-        --------
-        >>> g = Graph()
-        >>> g.add_edge("A", "B", weight=3.5, capacity=100)
-        Edge('A' -> 'B', w=3.5, id=...)
-        """
+        """اضافه کردن یک یال"""
         if auto_add_nodes:
             self.add_node(src_id)
             self.add_node(dst_id)
@@ -420,92 +331,115 @@ class Graph:
             self._require_node(src_id)
             self._require_node(dst_id)
 
-        src = self._nodes[src_id]
-        dst = self._nodes[dst_id]
-
-        edge = Edge(src, dst, weight, **attrs)
+        edge = Edge(self._nodes[src_id], self._nodes[dst_id], weight, name, **attrs)
         self._adj[src_id].append(edge)
-        self._inc_in_degree(dst_id)
+        self._inc_in_degree(dst_id, 1)
 
-        if not self.directed and src_id != dst_id:
-            self._adj[dst_id].append(edge.reversed())
-            self._inc_in_degree(src_id)
+        if not self.directed:
+            reverse = edge.reversed()
+            self._adj[dst_id].append(reverse)
+            self._inc_in_degree(src_id, 1)
 
         return edge
 
-    def remove_edge(
-        self,
-        src_id: Any,
-        dst_id: Any,
-        edge_id: Optional[str] = None,
-    ) -> Edge:
-        """
-        Remove an edge and return it.
+    def add_edges(self, edges: Any) -> None:
+        """اضافه کردن دسته‌ای از یال‌ها"""
+        for edge in edges:
+            if isinstance(edge, Edge):
+                self.add_edge_direct(edge)
+            elif isinstance(edge, (tuple, list)) and len(edge) >= 2:
+                src, dst = edge[0], edge[1]
+                weight = edge[2] if len(edge) > 2 else 1.0
+                self.add_edge(src, dst, weight)
 
-        Parameters
-        ----------
-        src_id, dst_id :
-            Endpoints.
-        edge_id : str, optional
-            When provided, only the edge with this id is removed
-            (essential for multi-graphs).  Otherwise the first
-            matching edge is removed.
+    def add_edge_direct(self, edge: Edge) -> Edge:
+        """اضافه کردن یک شیء Edge به طور مستقیم"""
+        src_id, dst_id = edge.endpoints()
+        return self.add_edge(
+            src_id, dst_id, edge.weight, edge.name,
+            auto_add_nodes=True, **edge.attrs()
+        )
 
-        Returns
-        -------
-        Edge
-            The removed edge.
-
-        Raises
-        ------
-        NodeNotFoundError, EdgeNotFoundError
-        """
+    def remove_edge(self, src_id: Any, dst_id: Any, edge_id: Optional[str] = None) -> Edge:
+        """حذف یک یال"""
         self._require_node(src_id)
+        self._require_node(dst_id)
 
-        removed_edge: Optional[Edge] = None
-        new_list: list[Edge] = []
+        adj = self._adj[src_id]
+        target_idx = -1
 
-        for e in self._adj[src_id]:
-            if removed_edge is None and e.dst.node_id == dst_id:
-                if edge_id is None or e.edge_id == edge_id:
-                    removed_edge = e
-                    continue
-            new_list.append(e)
+        if edge_id is None:
+            for i, e in enumerate(adj):
+                if e.dst.node_id == dst_id:
+                    target_idx = i
+                    break
+        else:
+            for i, e in enumerate(adj):
+                if e.dst.node_id == dst_id and e.edge_id == edge_id:
+                    target_idx = i
+                    break
 
-        if removed_edge is None:
+        if target_idx == -1:
             raise EdgeNotFoundError(src_id, dst_id, edge_id)
 
-        self._adj[src_id] = new_list
+        removed = adj.pop(target_idx)
         self._inc_in_degree(dst_id, -1)
 
-        if not self.directed and src_id != dst_id:
-            rid = removed_edge.edge_id + "_r"
-            self._adj[dst_id] = [e for e in self._adj[dst_id] if e.edge_id != rid]
+        if not self.directed:
             self._inc_in_degree(src_id, -1)
+            reverse_adj = self._adj[dst_id]
+            for i, e in enumerate(reverse_adj):
+                if e.dst.node_id == src_id and e.edge_id == removed.edge_id + "_r":
+                    reverse_adj.pop(i)
+                    break
 
-        return removed_edge
+        return removed
+
+    def update_edge(
+        self, src_id: Any, dst_id: Any, edge_id: Optional[str] = None, **attrs: Any
+    ) -> Edge:
+        """اپدیت یک یال"""
+        edges = self.get_edges(src_id, dst_id)
+        if not edges:
+            raise EdgeNotFoundError(src_id, dst_id, edge_id)
+
+        target_edge = None
+        if edge_id is None:
+            target_edge = edges[0]
+        else:
+            for e in edges:
+                if e.edge_id == edge_id:
+                    target_edge = e
+                    break
+
+        if target_edge is None:
+            raise EdgeNotFoundError(src_id, dst_id, edge_id)
+
+        if "weight" in attrs:
+            target_edge.weight = attrs.pop("weight")
+        if "name" in attrs:
+            target_edge.name = attrs.pop("name")
+        target_edge.update_attrs(**attrs)
+
+        return target_edge
 
     def has_edge(self, src_id: Any, dst_id: Any) -> bool:
-        """Return ``True`` if at least one edge exists from *src_id* to *dst_id*."""
-        adj = self._adj.get(src_id)
-        if adj is None:
-            return False
-        return any(e.dst.node_id == dst_id for e in adj)
+        """بررسی وجود یال"""
+        return len(self.get_edges(src_id, dst_id)) > 0
 
     def get_edges(self, src_id: Any, dst_id: Any) -> list[Edge]:
-        """
-        Return all edges from *src_id* to *dst_id*.
-        Returns an empty list when no edge exists (never raises).
-        """
+        """دریافت تمام یال‌های بین دو گره"""
+        if src_id not in self._nodes:
+            return []
         adj = self._adj.get(src_id, [])
         return [e for e in adj if e.dst.node_id == dst_id]
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  3. Traversal helpers
+    #  TRAVERSAL
     # ══════════════════════════════════════════════════════════════════════════
 
     def neighbors(self, node_id: Any) -> list[Node]:
-        """Return deduplicated adjacent nodes (order = first-seen)."""
+        """گره‌های مجاور (بدون تکرار)"""
         self._require_node(node_id)
         seen: set[Any] = set()
         result: list[Node] = []
@@ -517,68 +451,54 @@ class Graph:
         return result
 
     def out_edges(self, node_id: Any) -> list[Edge]:
-        """Return all outgoing edges from *node_id*."""
+        """تمام یال‌های خروجی"""
         self._require_node(node_id)
         return list(self._adj[node_id])
 
     def in_edges(self, node_id: Any) -> list[Edge]:
-        """
-        Return all edges whose destination is *node_id*.
-
-        Note: O(V + E) scan — use sparingly on large graphs.
-        For repeated in-edge queries, consider a reverse-adjacency index.
-        """
+        """تمام یال‌های ورودی (O(V+E))"""
         self._require_node(node_id)
         return [
-            e
-            for adj in self._adj.values()
+            e for adj in self._adj.values()
             for e in adj
             if e.dst.node_id == node_id
         ]
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  4. Degree queries  (in_degree = O(1) via cache)
+    #  DEGREE QUERIES
     # ══════════════════════════════════════════════════════════════════════════
 
     def out_degree(self, node_id: Any) -> int:
+        """درجه‌ی خروجی"""
         self._require_node(node_id)
         return len(self._adj[node_id])
 
     def in_degree(self, node_id: Any) -> int:
-        """O(1) — reads from the incremental cache."""
+        """درجه‌ی ورودی (O(1) via cache)"""
         self._require_node(node_id)
         return self._in_degree_cache.get(node_id, 0)
 
     def degree(self, node_id: Any) -> int:
-        """
-        Degree of a node.
-
-        - Undirected: number of incident edges (self-loops counted once).
-        - Directed: ``in_degree + out_degree``.
-        """
+        """درجه کل"""
+        self._require_node(node_id)
         if self.directed:
             return self.in_degree(node_id) + self.out_degree(node_id)
-        return self.out_degree(node_id)
+        else:
+            return self.out_degree(node_id)
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  5. Iterators
+    #  ITERATORS
     # ══════════════════════════════════════════════════════════════════════════
 
     def nodes(self) -> Iterator[Node]:
-        """Iterate over all nodes in insertion order."""
+        """تکرار روی تمام گره‌ها"""
         return iter(self._nodes.values())
 
     def edges(self) -> Iterator[Edge]:
-        """
-        Iterate over every edge exactly once.
-
-        For undirected graphs, shadow reverse edges (suffix ``_r``) are skipped
-        so each physical edge is yielded only once.
-        """
+        """تکرار روی تمام یال‌ها (هر کدام یک بار)"""
         seen: set[str] = set()
         for adj in self._adj.values():
             for e in adj:
-                # Skip shadow reverse edges created for undirected graphs
                 if e.edge_id.endswith("_r"):
                     continue
                 if e.edge_id not in seen:
@@ -586,30 +506,35 @@ class Graph:
                     yield e
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  6. Graph-level operations
+    #  GRAPH METRICS
     # ══════════════════════════════════════════════════════════════════════════
 
     def order(self) -> int:
-        """Number of nodes (graph order)."""
+        """تعداد گره‌ها"""
         return len(self._nodes)
 
     def size(self) -> int:
-        """Number of edges (graph size), counting undirected edges once."""
+        """تعداد یال‌ها"""
         return sum(1 for _ in self.edges())
 
+    def num_edges(self, src_id: Any = None, dst_id: Any = None) -> int:
+        """تعداد یال‌ها (کل یا بین دو گره)"""
+        if src_id is not None and dst_id is not None:
+            return len(self.get_edges(src_id, dst_id))
+        return self.size()
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  GRAPH OPERATIONS
+    # ══════════════════════════════════════════════════════════════════════════
+
     def clear(self) -> None:
-        """Remove all nodes and edges, resetting the graph to empty."""
+        """خالی کردن گراف"""
         self._nodes.clear()
         self._adj.clear()
         self._in_degree_cache.clear()
 
     def copy(self) -> Graph:
-        """
-        Return a shallow copy of this graph.
-
-        Nodes and Edges are new objects; their ``.data`` payloads are
-        *not* deep-copied (shared references are preserved).
-        """
+        """کپی گراف"""
         g = Graph(directed=self.directed, name=self.name + "_copy")
         for node in self.nodes():
             g.add_node(node.node_id, node.data, **node.attrs())
@@ -618,30 +543,14 @@ class Graph:
                 edge.src.node_id,
                 edge.dst.node_id,
                 edge.weight,
+                edge.name,
                 auto_add_nodes=False,
                 **edge.attrs(),
             )
         return g
 
     def subgraph(self, node_ids: Any) -> Graph:
-        """
-        Return a new graph induced by the given node ids.
-
-        Only edges where *both* endpoints are in *node_ids* are included.
-
-        Parameters
-        ----------
-        node_ids : iterable of node ids
-
-        Returns
-        -------
-        Graph
-
-        Raises
-        ------
-        NodeNotFoundError
-            If any requested node id does not exist in this graph.
-        """
+        """زیرگراف ایجاد شده توسط گره‌های داده شده"""
         ids = set(node_ids)
         for nid in ids:
             self._require_node(nid)
@@ -657,30 +566,154 @@ class Graph:
                     edge.src.node_id,
                     edge.dst.node_id,
                     edge.weight,
+                    edge.name,
                     auto_add_nodes=False,
                     **edge.attrs(),
                 )
         return g
 
+    def complement(self) -> Graph:
+        """گراف مکمل (یال‌های موجود حذف، یال‌های ناموجود اضافه)"""
+        comp = Graph(directed=self.directed, name=self.name + "_complement")
+        
+        # اضافه کردن تمام گره‌ها
+        for node in self.nodes():
+            comp.add_node(node.node_id, node.data, **node.attrs())
+        
+        # اضافه کردن یال‌های مکمل
+        for src in self.nodes():
+            for dst in self.nodes():
+                # بدون خود یال برای undirected، با خود یال برای directed
+                if self.directed:
+                    if src.node_id == dst.node_id:
+                        continue
+                else:
+                    if src.node_id >= dst.node_id:
+                        continue
+                
+                if not self.has_edge(src.node_id, dst.node_id):
+                    comp.add_edge(src.node_id, dst.node_id, auto_add_nodes=False)
+        
+        return comp
+
     # ══════════════════════════════════════════════════════════════════════════
-    #  7. Python dunder interface
+    #  GRAPH OPERATIONS: ADD, SUB
     # ══════════════════════════════════════════════════════════════════════════
 
-    def __contains__(self, node_id: Any) -> bool:
-        """Support ``node_id in graph`` syntax."""
-        return node_id in self._nodes
+    def __add__(self, other: Union[Graph, Node, Edge]) -> Graph:
+        """
+        جمع دو گراف (Merge) یا اضافه کردن Node/Edge
+        
+        g1 + g2 = Merge کردن گراف‌ها (اتحاد)
+        g + node = اضافه کردن گره
+        g + edge = اضافه کردن یال
+        """
+        if isinstance(other, Graph):
+            # Merge دو گراف
+            result = self.copy()
+            for node in other.nodes():
+                result.add_node(node.node_id, node.data, **node.attrs())
+            for edge in other.edges():
+                result.add_edge(
+                    edge.src.node_id,
+                    edge.dst.node_id,
+                    edge.weight,
+                    edge.name,
+                    **edge.attrs(),
+                )
+            return result
+        elif isinstance(other, Node):
+            result = self.copy()
+            result.add_node_direct(other)
+            return result
+        elif isinstance(other, Edge):
+            result = self.copy()
+            result.add_edge_direct(other)
+            return result
+        return NotImplemented
 
-    def __len__(self) -> int:
-        """Return the number of nodes (``len(graph)``)."""
-        return self.order()
+    def __sub__(self, other: Union[Graph, Node, Edge]) -> Graph:
+        """
+        تفریق گراف‌ها یا حذف Node/Edge
+        
+        g1 - g2 = حذف گره‌ها و یال‌هایی که در g2 هستند
+        g - node = حذف گره
+        g - edge = حذف یال
+        """
+        if isinstance(other, Graph):
+            result = self.copy()
+            # حذف گره‌هایی که در هر دو وجود دارند
+            for node in other.nodes():
+                if result.has_node(node.node_id):
+                    result.remove_node(node.node_id)
+            return result
+        elif isinstance(other, Node):
+            result = self.copy()
+            if result.has_node(other.node_id):
+                result.remove_node(other.node_id)
+            return result
+        elif isinstance(other, Edge):
+            result = self.copy()
+            src_id, dst_id = other.endpoints()
+            try:
+                result.remove_edge(src_id, dst_id, other.edge_id)
+            except EdgeNotFoundError:
+                pass
+            return result
+        return NotImplemented
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  DUNDER METHODS
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def __contains__(self, item: Any) -> bool:
+        """
+        بررسی عضویت
+        
+        گره_id in g → بررسی وجود گره
+        edge in g → بررسی وجود یال
+        graph_sub in g → بررسی subgraph بودن
+        """
+        if isinstance(item, Node):
+            return self.has_node(item.node_id)
+        elif isinstance(item, Edge):
+            return self.has_edge(item.src.node_id, item.dst.node_id)
+        elif isinstance(item, Graph):
+            # بررسی اینکه item یک subgraph است
+            for node in item.nodes():
+                if not self.has_node(node.node_id):
+                    return False
+            for edge in item.edges():
+                if not self.has_edge(edge.src.node_id, edge.dst.node_id):
+                    return False
+            return True
+        else:
+            return self.has_node(item)
+
+    def __len__(self) -> tuple[int, int]:
+        """بازگشت (تعداد_گره‌ها, تعداد_یال‌ها)"""
+        return (self.order(), self.size())
 
     def __iter__(self) -> Iterator[Node]:
-        """Iterate over nodes (``for node in graph``)."""
+        """تکرار روی گره‌ها"""
         return self.nodes()
 
     def __repr__(self) -> str:
-        kind = "Directed" if self.directed else "Undirected"
+        kind = "جهت‌دار" if self.directed else "بدون‌جهت"
         return (
-            f"Graph(name={self.name!r}, type={kind}, "
-            f"nodes={self.order()}, edges={self.size()})"
+            f"Graph(نام={self.name!r}, نوع={kind}, "
+            f"گره‌ها={self.order()}, یال‌ها={self.size()})"
         )
+
+    # ══════════════════════════════════════════════════════════════════════════
+    #  PRIVATE HELPERS
+    # ══════════════════════════════════════════════════════════════════════════
+
+    def _require_node(self, node_id: Any) -> None:
+        """بررسی وجود گره، exception اگر نباشد"""
+        if node_id not in self._nodes:
+            raise NodeNotFoundError(node_id)
+
+    def _inc_in_degree(self, node_id: Any, delta: int) -> None:
+        """اپدیت cache درجه‌ی ورودی"""
+        self._in_degree_cache[node_id] = self._in_degree_cache.get(node_id, 0) + delta

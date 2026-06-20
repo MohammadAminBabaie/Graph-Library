@@ -1,278 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graph Viewer — Interactive Graph Visualization</title>
+    <title>نمایش‌دهنده‌ی گراف — تصور تعاملی</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        header {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-        }
-
-        header h1 {
-            font-size: 28px;
-            margin-bottom: 5px;
-        }
-
-        header p {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-            gap: 20px;
-            padding: 20px;
-        }
-
-        .canvas-wrapper {
-            flex: 1;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            position: relative;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            cursor: grab;
-        }
-
-        canvas:active {
-            cursor: grabbing;
-        }
-
-        .sidebar {
-            width: 350px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .sidebar-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .section {
-            margin-bottom: 25px;
-        }
-
-        .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #667eea;
-            color: white;
-        }
-
-        button:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        button.secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        button.secondary:hover {
-            background: #e0e0e0;
-        }
-
-        .info-box {
-            background: #f5f5f5;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            border-radius: 4px;
-            font-size: 13px;
-            line-height: 1.6;
-            color: #666;
-        }
-
-        .info-box strong {
-            color: #333;
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .control-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #ddd;
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #667eea;
-            cursor: pointer;
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #667eea;
-            cursor: pointer;
-            border: none;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .stat-item {
-            background: #f5f5f5;
-            padding: 12px;
-            border-radius: 6px;
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: #999;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            font-size: 22px;
-            font-weight: 700;
-            color: #667eea;
-        }
-
-        textarea {
-            width: 100%;
-            height: 100px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-family: "Courier New", monospace;
-            font-size: 12px;
-            resize: none;
-        }
-
-        .instructions {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #1565c0;
-            line-height: 1.6;
-        }
-
-        .instructions strong {
-            color: #0d47a1;
-        }
-
-        footer {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            text-align: center;
-            padding: 15px;
-            font-size: 12px;
-        }
-
-        @media (max-width: 1024px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                max-height: 300px;
-            }
-        }
-
-        .hidden {
-            display: none;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Tahoma, Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; direction: rtl; }
+        header { background: rgba(0,0,0,0.8); color: white; padding: 20px; text-align: center; }
+        .container { display: flex; gap: 20px; padding: 20px; flex: 1; }
+        .canvas-wrapper { flex: 1; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; position: relative; }
+        canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+        .sidebar { width: 350px; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+        .sidebar-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; font-size: 18px; font-weight: 600; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 20px; }
+        .section { margin-bottom: 25px; }
+        .section-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; text-transform: uppercase; }
+        button { padding: 10px 15px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; background: #667eea; color: white; transition: all 0.3s; }
+        button:hover { background: #5568d3; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+        button.secondary { background: #f0f0f0; color: #333; }
+        button.secondary:hover { background: #e0e0e0; }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .info-box { background: #f5f5f5; border-left: 4px solid #667eea; padding: 15px; border-radius: 4px; font-size: 13px; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-item { background: #f5f5f5; padding: 12px; border-radius: 6px; text-align: center; }
+        .stat-label { font-size: 11px; color: #999; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-value { font-size: 22px; font-weight: 700; color: #667eea; }
+        input[type="range"] { width: 100%; }
+        textarea { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 12px; resize: none; }
+        .instructions { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; border-radius: 4px; font-size: 12px; color: #1565c0; line-height: 1.6; }
+        footer { background: rgba(0,0,0,0.7); color: white; text-align: center; padding: 15px; font-size: 12px; }
+        @media (max-width: 1024px) { .container { flex-direction: column; } .sidebar { width: 100%; max-height: 300px; } }
     </style>
 </head>
 <body>
     <header>
-        <h1>📊 Graph Viewer</h1>
-        <p>Interactive Graph Visualization — Drag nodes, zoom, and explore your graph</p>
+        <h1>📊 نمایش‌دهنده‌ی گراف</h1>
+        <p>تصور تعاملی گراف - گره‌ها را بکشید، بزوم کنید و کاوش کنید</p>
     </header>
 
     <div class="container">
@@ -281,56 +46,56 @@
         </div>
 
         <div class="sidebar">
-            <div class="sidebar-header">⚙️ Controls</div>
+            <div class="sidebar-header">⚙️ کنترل‌ها</div>
             <div class="sidebar-content">
-                <!-- Stats -->
                 <div class="section">
-                    <div class="section-title">📈 Statistics</div>
+                    <div class="section-title">📈 آمار</div>
                     <div class="stats">
                         <div class="stat-item">
-                            <div class="stat-label">Nodes</div>
+                            <div class="stat-label">گره‌ها</div>
                             <div class="stat-value" id="node-count">0</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-label">Edges</div>
+                            <div class="stat-label">یال‌ها</div>
                             <div class="stat-value" id="edge-count">0</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Visualization -->
                 <div class="section">
-                    <div class="section-title">🎨 Visualization</div>
-                    <div class="control-group">
-                        <label for="zoom">Zoom Level: <span id="zoom-value">100</span>%</label>
+                    <div class="section-title">🎨 نمایش</div>
+                    <div>
+                        <label>بزوم: <span id="zoom-value">100</span>%</label>
                         <input type="range" id="zoom" min="50" max="200" value="100">
                     </div>
-                    <div class="control-group">
-                        <label for="node-size">Node Size</label>
+                    <div style="margin-top: 10px;">
+                        <label>اندازه‌ی گره</label>
                         <input type="range" id="node-size" min="15" max="50" value="30">
                     </div>
-                    <button onclick="resetView()">🔄 Reset View</button>
+                    <button onclick="resetView()" style="width: 100%; margin-top: 10px;">🔄 بازنشانی</button>
                 </div>
 
-                <!-- Actions -->
                 <div class="section">
-                    <div class="section-title">📤 Import/Export</div>
+                    <div class="section-title">📤 درون‌ریزی/برون‌ریزی</div>
                     <div class="button-group">
-                        <button onclick="downloadJSON()">Download JSON</button>
-                        <button class="secondary" onclick="document.getElementById('json-input').click()">Load JSON</button>
+                        <button onclick="downloadJSON()">دانلود JSON</button>
+                        <button class="secondary" onclick="document.getElementById('json-input').click()">بارگذاری JSON</button>
+                    </div>
+                    <div class="button-group" style="margin-top: 8px;">
+                        <button onclick="document.getElementById('dot-input').click()">بارگذاری DOT</button>
+                        <button class="secondary" onclick="downloadDOT()">دانلود DOT</button>
                     </div>
                     <input type="file" id="json-input" accept=".json" style="display: none;" onchange="loadJSON(event)">
+                    <input type="file" id="dot-input" accept=".dot" style="display: none;" onchange="loadDOT(event)">
                 </div>
 
-                <!-- Instructions -->
                 <div class="section">
                     <div class="instructions">
-                        <strong>How to use:</strong>
+                        <strong>نحوه‌ی استفاده:</strong>
                         <ul style="margin-left: 15px; margin-top: 8px;">
-                            <li>Drag nodes to move them</li>
-                            <li>Scroll to zoom in/out</li>
-                            <li>Use controls to adjust view</li>
-                            <li>Export graph as JSON</li>
+                            <li>گره‌ها را بکشید</li>
+                            <li>اسکرول برای بزوم</li>
+                            <li>JSON یا DOT بارگذاری کنید</li>
                         </ul>
                     </div>
                 </div>
@@ -339,7 +104,7 @@
     </div>
 
     <footer>
-        Graph Library © 2025 | Licensed under Apache License 2.0
+        Graph Library © 2025 | Apache License 2.0
     </footer>
 
     <script>
@@ -354,17 +119,14 @@
         let panY = 0;
         let nodeSize = 30;
         let selectedNode = null;
-        let mouseX = 0;
-        let mouseY = 0;
+        let isDragging = false;
 
-        // Resize canvas
         function resizeCanvas() {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
             render();
         }
 
-        // Load graph from JSON
         function loadGraphFromJSON(jsonData) {
             try {
                 graph = JSON.parse(jsonData);
@@ -376,80 +138,130 @@
                     vy: 0
                 }));
                 edges = graph.edges;
-
+                
                 document.getElementById('node-count').textContent = nodes.length;
                 document.getElementById('edge-count').textContent = edges.length;
-
-                // Simulate physics a bit
+                
                 simulatePhysics(50);
                 render();
             } catch (err) {
-                alert('Error loading JSON: ' + err.message);
+                alert('خطا در بارگذاری JSON: ' + err.message);
             }
         }
 
-        // Physics simulation (force-directed layout)
+        function loadDOTFromText(dotText) {
+            try {
+                const lines = dotText.split('\n');
+                const isDirected = dotText.includes('digraph');
+                
+                graph = {
+                    name: "DOT Graph",
+                    directed: isDirected,
+                    nodes: [],
+                    edges: []
+                };
+                
+                const nodeIds = new Set();
+                const nodePattern = /"([^"]+)"/g;
+                let match;
+                while ((match = nodePattern.exec(dotText)) !== null) {
+                    nodeIds.add(match[1]);
+                }
+                
+                for (const id of nodeIds) {
+                    graph.nodes.push({
+                        id: id,
+                        label: id,
+                        data: null,
+                        attrs: {}
+                    });
+                }
+                
+                const edgePattern = /"([^"]+)"\s*(?:->|--)\s*"([^"]+)"/g;
+                while ((match = edgePattern.exec(dotText)) !== null) {
+                    graph.edges.push({
+                        source: match[1],
+                        target: match[2],
+                        name: match[1] + "_" + match[2],
+                        weight: 1.0,
+                        label: "",
+                        attrs: {}
+                    });
+                }
+                
+                nodes = graph.nodes.map(n => ({
+                    ...n,
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: 0,
+                    vy: 0
+                }));
+                edges = graph.edges;
+                
+                document.getElementById('node-count').textContent = nodes.length;
+                document.getElementById('edge-count').textContent = edges.length;
+                
+                simulatePhysics(50);
+                render();
+            } catch (err) {
+                alert('خطا در تجزیه DOT: ' + err.message);
+            }
+        }
+
         function simulatePhysics(iterations) {
             for (let iter = 0; iter < iterations; iter++) {
-                // Reset forces
                 nodes.forEach(n => { n.vx = 0; n.vy = 0; });
-
-                // Repulsion between nodes
+                
                 for (let i = 0; i < nodes.length; i++) {
                     for (let j = i + 1; j < nodes.length; j++) {
                         const n1 = nodes[i], n2 = nodes[j];
                         const dx = n2.x - n1.x;
                         const dy = n2.y - n1.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
+                        const dist = Math.sqrt(dx*dx + dy*dy) + 0.1;
                         const force = 100 / (dist * dist);
-
-                        n1.vx -= (dx / dist) * force;
-                        n1.vy -= (dy / dist) * force;
-                        n2.vx += (dx / dist) * force;
-                        n2.vy += (dy / dist) * force;
+                        
+                        n1.vx -= (dx/dist) * force;
+                        n1.vy -= (dy/dist) * force;
+                        n2.vx += (dx/dist) * force;
+                        n2.vy += (dy/dist) * force;
                     }
                 }
-
-                // Attraction along edges
+                
                 edges.forEach(edge => {
                     const src = nodes.find(n => n.id === edge.source);
                     const dst = nodes.find(n => n.id === edge.target);
                     if (src && dst) {
                         const dx = dst.x - src.x;
                         const dy = dst.y - src.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy) + 0.1;
+                        const dist = Math.sqrt(dx*dx + dy*dy) + 0.1;
                         const force = dist * 0.05;
-
-                        src.vx += (dx / dist) * force;
-                        src.vy += (dy / dist) * force;
-                        dst.vx -= (dx / dist) * force;
-                        dst.vy -= (dy / dist) * force;
+                        
+                        src.vx += (dx/dist) * force;
+                        src.vy += (dy/dist) * force;
+                        dst.vx -= (dx/dist) * force;
+                        dst.vy -= (dy/dist) * force;
                     }
                 });
-
-                // Apply velocities
+                
                 nodes.forEach(n => {
                     n.x += n.vx * 0.5;
                     n.y += n.vy * 0.5;
-
-                    // Keep within bounds
                     n.x = Math.max(nodeSize, Math.min(canvas.width - nodeSize, n.x));
                     n.y = Math.max(nodeSize, Math.min(canvas.height - nodeSize, n.y));
                 });
             }
         }
 
-        // Rendering
         function render() {
             ctx.fillStyle = '#fff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+            
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(zoom, zoom);
             ctx.translate(-canvas.width / 2 + panX / zoom, -canvas.height / 2 + panY / zoom);
-
-            // Draw edges
+            
+            // یال‌ها
             edges.forEach(edge => {
                 const src = nodes.find(n => n.id === edge.source);
                 const dst = nodes.find(n => n.id === edge.target);
@@ -460,19 +272,16 @@
                     ctx.moveTo(src.x, src.y);
                     ctx.lineTo(dst.x, dst.y);
                     ctx.stroke();
-
-                    // Edge label
-                    if (edge.weight && edge.weight !== 1) {
-                        const mx = (src.x + dst.x) / 2;
-                        const my = (src.y + dst.y) / 2;
-                        ctx.fillStyle = '#666';
-                        ctx.font = '12px Arial';
-                        ctx.fillText(edge.weight.toFixed(1), mx, my - 10);
-                    }
+                    
+                    const mx = (src.x + dst.x) / 2;
+                    const my = (src.y + dst.y) / 2;
+                    ctx.fillStyle = '#666';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(edge.name, mx, my - 10);
                 }
             });
-
-            // Draw nodes
+            
+            // گره‌ها
             nodes.forEach(node => {
                 ctx.fillStyle = node === selectedNode ? '#667eea' : '#b3d9ff';
                 ctx.strokeStyle = '#0066cc';
@@ -481,48 +290,47 @@
                 ctx.arc(node.x, node.y, nodeSize, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
-
-                // Node label
+                
                 ctx.fillStyle = '#000';
                 ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(node.id, node.x, node.y);
             });
-
+            
             ctx.restore();
         }
 
-        // Mouse events
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
-
-            if (selectedNode) {
-                selectedNode.x = mouseX / zoom + canvas.width / 2 - panX / zoom;
-                selectedNode.y = mouseY / zoom + canvas.height / 2 - panY / zoom;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (isDragging && selectedNode) {
+                selectedNode.x = x / zoom + canvas.width / 2 - panX / zoom;
+                selectedNode.y = y / zoom + canvas.height / 2 - panY / zoom;
                 render();
             }
         });
 
         canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
-
-            const canvasX = mouseX / zoom + canvas.width / 2 - panX / zoom;
-            const canvasY = mouseY / zoom + canvas.height / 2 - panY / zoom;
-
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const canvasX = x / zoom + canvas.width / 2 - panX / zoom;
+            const canvasY = y / zoom + canvas.height / 2 - panY / zoom;
+            
             selectedNode = nodes.find(n => {
                 const dx = n.x - canvasX;
                 const dy = n.y - canvasY;
-                return Math.sqrt(dx * dx + dy * dy) < nodeSize;
+                return Math.sqrt(dx*dx + dy*dy) < nodeSize;
             });
+            
+            if (selectedNode) isDragging = true;
         });
 
         canvas.addEventListener('mouseup', () => {
-            selectedNode = null;
+            isDragging = false;
         });
 
         canvas.addEventListener('wheel', (e) => {
@@ -533,7 +341,6 @@
             render();
         });
 
-        // Node size control
         document.getElementById('node-size').addEventListener('input', (e) => {
             nodeSize = parseInt(e.target.value);
             render();
@@ -545,22 +352,25 @@
             render();
         });
 
-        // Load JSON
         function loadJSON(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
-            reader.onload = (e) => {
-                loadGraphFromJSON(e.target.result);
-            };
+            reader.onload = (e) => loadGraphFromJSON(e.target.result);
             reader.readAsText(file);
         }
 
-        // Download JSON
+        function loadDOT(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => loadDOTFromText(e.target.result);
+            reader.readAsText(file);
+        }
+
         function downloadJSON() {
             if (!graph) {
-                alert('No graph loaded');
+                alert('هیچ گرافی بارگذاری نشده است');
                 return;
             }
             const json = JSON.stringify(graph, null, 2);
@@ -568,11 +378,32 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${graph.name || 'graph'}.json`;
+            a.download = `${graph.name}.json`;
             a.click();
         }
 
-        // Reset view
+        function downloadDOT() {
+            if (!graph) {
+                alert('هیچ گرافی بارگذاری نشده است');
+                return;
+            }
+            let dot = (graph.directed ? 'digraph' : 'graph') + ' ' + graph.name + ' {\n';
+            graph.nodes.forEach(n => {
+                dot += `  "${n.id}";\n`;
+            });
+            graph.edges.forEach(e => {
+                const op = graph.directed ? '->' : '--';
+                dot += `  "${e.source}" ${op} "${e.target}";\n`;
+            });
+            dot += '}\n';
+            const blob = new Blob([dot], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${graph.name}.dot`;
+            a.click();
+        }
+
         function resetView() {
             zoom = 1.0;
             panX = 0;
@@ -583,28 +414,23 @@
             render();
         }
 
-        // Example graph
         function loadExampleGraph() {
             const exampleJSON = JSON.stringify({
-                name: "Example Graph",
+                name: "نمونه‌ی گراف",
                 directed: true,
                 nodes: [
                     { id: "A", label: "A", data: null, attrs: {} },
                     { id: "B", label: "B", data: null, attrs: {} },
-                    { id: "C", label: "C", data: null, attrs: {} },
-                    { id: "D", label: "D", data: null, attrs: {} }
+                    { id: "C", label: "C", data: null, attrs: {} }
                 ],
                 edges: [
-                    { source: "A", target: "B", weight: 2.5, label: "2.5", attrs: {} },
-                    { source: "B", target: "C", weight: 3.0, label: "3.0", attrs: {} },
-                    { source: "A", target: "D", weight: 1.5, label: "1.5", attrs: {} },
-                    { source: "C", target: "D", weight: 2.0, label: "2.0", attrs: {} }
+                    { source: "A", target: "B", name: "A_B", weight: 1.0, label: "", attrs: {} },
+                    { source: "B", target: "C", name: "B_C", weight: 1.0, label: "", attrs: {} }
                 ]
             });
             loadGraphFromJSON(exampleJSON);
         }
 
-        // Initialize
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
         loadExampleGraph();
