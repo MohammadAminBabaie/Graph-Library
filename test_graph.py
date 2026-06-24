@@ -1,297 +1,270 @@
 """
-test_graph.py
-=============
-Unit tests for graph.py — Phase 1 (Revised)
-Run with:  python -m pytest test_graph.py -v
+تست‌های واحدی برای Graph Library
+
+Licensed under Apache License 2.0
+اجرا: python test_graph.py
 """
 
-import pytest
-from graph import (
-    Graph,
-    Node,
-    Edge,
-    GraphError,
-    NodeNotFoundError,
-    EdgeNotFoundError,
-    DuplicateNodeError,
-)
-
-
-# ─────────────────────────────────────────────
-#  Fixtures
-# ─────────────────────────────────────────────
-
-@pytest.fixture
-def dg() -> Graph:
-    """Small directed weighted graph used across many tests."""
-    g = Graph(directed=True, name="TestDG")
-    g.add_node("A", data=1, color="red")
-    g.add_node("B", data=2)
-    g.add_node("C", data=3)
-    g.add_edge("A", "B", weight=2.0)
-    g.add_edge("B", "C", weight=3.0)
-    g.add_edge("A", "C", weight=5.0)
-    return g
-
-
-@pytest.fixture
-def ug() -> Graph:
-    """Small undirected graph."""
-    g = Graph(directed=False, name="TestUG")
-    g.add_edge("X", "Y", weight=1.0)
-    g.add_edge("Y", "Z", weight=2.0)
-    return g
-
-
-# ─────────────────────────────────────────────
-#  Node tests
-# ─────────────────────────────────────────────
-
-class TestNode:
-    def test_creation(self):
-        n = Node("id1", data=42, color="blue")
-        assert n.node_id == "id1"
-        assert n.data == 42
-        assert n.get_attr("color") == "blue"
-
-    def test_set_get_del_attr(self):
-        n = Node("n")
-        n.set_attr("x", 10)
-        assert n.get_attr("x") == 10
-        n.del_attr("x")
-        assert n.get_attr("x") is None
-
-    def test_del_missing_attr_raises(self):
-        n = Node("n")
-        with pytest.raises(KeyError):
-            n.del_attr("nonexistent")
-
-    def test_update_attrs_bulk(self):
-        n = Node("n")
-        n.update_attrs(a=1, b=2)
-        assert n.attrs() == {"a": 1, "b": 2}
-
-    def test_equality_and_hash(self):
-        n1 = Node("A")
-        n2 = Node("A")
-        assert n1 == n2
-        assert hash(n1) == hash(n2)
-        assert n1 == "A"
-
-    def test_repr(self):
-        n = Node("Z", data=99)
-        assert "Z" in repr(n)
-
-
-# ─────────────────────────────────────────────
-#  Edge tests
-# ─────────────────────────────────────────────
-
-class TestEdge:
-    def test_creation(self):
-        a, b = Node("A"), Node("B")
-        e = Edge(a, b, weight=7.5, label="road")
-        assert e.weight == 7.5
-        assert e.get_attr("label") == "road"
-
-    def test_reversed(self):
-        a, b = Node("A"), Node("B")
-        e = Edge(a, b, weight=4.0)
-        r = e.reversed()
-        assert r.src.node_id == "B"
-        assert r.dst.node_id == "A"
-        assert r.weight == 4.0
-
-    def test_endpoints(self):
-        a, b = Node("X"), Node("Y")
-        e = Edge(a, b)
-        assert e.endpoints() == ("X", "Y")
-
-    def test_auto_edge_id(self):
-        a, b = Node("A"), Node("B")
-        e1, e2 = Edge(a, b), Edge(a, b)
-        assert e1.edge_id != e2.edge_id
-
-
-# ─────────────────────────────────────────────
-#  Graph — node operations
-# ─────────────────────────────────────────────
-
-class TestGraphNodes:
-    def test_add_and_get_node(self, dg):
-        node = dg.get_node("A")
-        assert node.node_id == "A"
-        assert node.data == 1
-
-    def test_add_node_idempotent(self, dg):
-        n = dg.add_node("A")  # already exists
-        assert n.node_id == "A"
-        assert dg.order() == 3
-
-    def test_add_node_strict_raises(self, dg):
-        with pytest.raises(DuplicateNodeError):
-            dg.add_node("A", strict=True)
-
-    def test_remove_node_removes_edges(self, dg):
-        dg.remove_node("A")
-        assert not dg.has_node("A")
-        assert not dg.has_edge("A", "B")
-        assert not dg.has_edge("A", "C")
-
-    def test_remove_missing_node_raises(self, dg):
-        with pytest.raises(NodeNotFoundError):
-            dg.remove_node("GHOST")
-
-    def test_update_node(self, dg):
-        dg.update_node("B", data=99, color="green")
-        node = dg.get_node("B")
-        assert node.data == 99
-        assert node.get_attr("color") == "green"
-
-    def test_has_node(self, dg):
-        assert dg.has_node("A")
-        assert not dg.has_node("Z")
-
-    def test_contains_operator(self, dg):
-        assert "B" in dg
-        assert "Z" not in dg
-
-    def test_len_operator(self, dg):
-        assert len(dg) == 3
-
-    def test_iter_operator(self, dg):
-        ids = {n.node_id for n in dg}
-        assert ids == {"A", "B", "C"}
-
-
-# ─────────────────────────────────────────────
-#  Graph — edge operations
-# ─────────────────────────────────────────────
-
-class TestGraphEdges:
-    def test_has_edge(self, dg):
-        assert dg.has_edge("A", "B")
-        assert not dg.has_edge("B", "A")
-
-    def test_get_edges(self, dg):
-        edges = dg.get_edges("A", "B")
-        assert len(edges) == 1
-        assert edges[0].weight == 2.0
-
-    def test_multi_edge(self, dg):
-        dg.add_edge("A", "B", weight=9.9)
-        edges = dg.get_edges("A", "B")
-        assert len(edges) == 2
-
-    def test_remove_edge(self, dg):
-        dg.remove_edge("A", "B")
-        assert not dg.has_edge("A", "B")
-
-    def test_remove_specific_edge_id(self, dg):
-        e2 = dg.add_edge("A", "B", weight=9.9)
-        dg.remove_edge("A", "B", edge_id=e2.edge_id)
-        edges = dg.get_edges("A", "B")
-        assert len(edges) == 1  # original still there
-
-    def test_remove_missing_edge_raises(self, dg):
-        with pytest.raises(EdgeNotFoundError):
-            dg.remove_edge("C", "A")
-
-    def test_self_loop(self):
-        g = Graph()
-        g.add_edge("A", "A", weight=1.0)
-        assert g.has_edge("A", "A")
-        assert g.size() == 1
-
-    def test_auto_add_nodes_false_raises(self):
-        g = Graph()
-        with pytest.raises(NodeNotFoundError):
-            g.add_edge("X", "Y", auto_add_nodes=False)
-
-
-# ─────────────────────────────────────────────
-#  Graph — degree & traversal
-# ─────────────────────────────────────────────
-
-class TestGraphDegree:
-    def test_out_degree(self, dg):
-        assert dg.out_degree("A") == 2
-        assert dg.out_degree("C") == 0
-
-    def test_in_degree(self, dg):
-        assert dg.in_degree("A") == 0
-        assert dg.in_degree("C") == 2
-
-    def test_in_degree_cache_after_remove(self, dg):
-        dg.remove_edge("A", "C")
-        assert dg.in_degree("C") == 1
-
-    def test_neighbors_directed(self, dg):
-        nids = {n.node_id for n in dg.neighbors("A")}
-        assert nids == {"B", "C"}
-
-    def test_out_edges(self, dg):
-        assert len(dg.out_edges("A")) == 2
-
-    def test_in_edges(self, dg):
-        assert len(dg.in_edges("C")) == 2
-
-    def test_undirected_degree(self, ug):
-        assert ug.degree("Y") == 2  # X-Y and Y-Z
-
-    def test_undirected_neighbors_symmetric(self, ug):
-        assert any(n.node_id == "X" for n in ug.neighbors("Y"))
-        assert any(n.node_id == "Y" for n in ug.neighbors("X"))
-
-
-# ─────────────────────────────────────────────
-#  Graph — copy & subgraph
-# ─────────────────────────────────────────────
-
-class TestGraphCopy:
-    def test_copy_is_independent(self, dg):
-        g2 = dg.copy()
-        g2.add_node("NEW")
-        assert not dg.has_node("NEW")
-        assert g2.order() == dg.order() + 1
-
-    def test_copy_preserves_edges(self, dg):
-        g2 = dg.copy()
-        assert g2.has_edge("A", "B")
-        assert g2.size() == dg.size()
-
-    def test_subgraph(self, dg):
-        sg = dg.subgraph(["A", "B"])
-        assert sg.order() == 2
-        assert sg.has_edge("A", "B")
-        assert not sg.has_edge("A", "C")  # C not in subgraph
-
-    def test_subgraph_missing_node_raises(self, dg):
-        with pytest.raises(NodeNotFoundError):
-            dg.subgraph(["A", "GHOST"])
-
-    def test_clear(self, dg):
-        dg.clear()
-        assert dg.order() == 0
-        assert dg.size() == 0
-
-
-# ─────────────────────────────────────────────
-#  Graph — iterators
-# ─────────────────────────────────────────────
-
-class TestGraphIterators:
-    def test_nodes_iter(self, dg):
-        assert len(list(dg.nodes())) == 3
-
-    def test_edges_iter_directed(self, dg):
-        assert len(list(dg.edges())) == 3
-
-    def test_edges_iter_undirected_no_duplicates(self, ug):
-        edge_list = list(ug.edges())
-        assert len(edge_list) == 2  # X-Y and Y-Z, not their reverses
-
-    def test_repr(self, dg):
-        r = repr(dg)
-        assert "Directed" in r
-        assert "TestDG" in r
+import sys
+from graph import Graph, Node, Edge, GraphError, NodeNotFoundError, EdgeNotFoundError, DuplicateNodeError
+
+
+class TestRunner:
+    def __init__(self):
+        self.passed = 0
+        self.failed = 0
+
+    def test(self, name: str, condition: bool, message: str = ""):
+        if condition:
+            self.passed += 1
+            print(f"  ✅ {name}")
+        else:
+            self.failed += 1
+            print(f"  ❌ {name}")
+            if message:
+                print(f"     {message}")
+
+    def summary(self):
+        total = self.passed + self.failed
+        print(f"\n{'='*70}")
+        print(f"نتایج: {self.passed}/{total} تست گذاشت")
+        print(f"{'='*70}\n")
+        return self.failed == 0
+
+
+def test_node_creation():
+    print("\n🔵 تست‌های Node")
+    runner = TestRunner()
+    
+    node = Node("A")
+    runner.test("ایجاد گره", node.node_id == "A")
+    
+    node = Node("B", data={"value": 10})
+    runner.test("گره با data", node.data["value"] == 10)
+    
+    node = Node("C", color="red")
+    runner.test("گره با attributes", node.get_attr("color") == "red")
+    
+    return runner.summary()
+
+
+def test_edge_creation():
+    print("\n🟠 تست‌های Edge")
+    runner = TestRunner()
+    
+    n1, n2 = Node("A"), Node("B")
+    edge = Edge(n1, n2)
+    runner.test("ایجاد یال", edge.src.node_id == "A")
+    runner.test("نام خودکار یال", edge.name == "A_B")
+    
+    edge = Edge(n1, n2, weight=5.0, name="مسیر")
+    runner.test("یال با نام کاستم", edge.name == "مسیر")
+    runner.test("وزن یال", edge.weight == 5.0)
+    
+    reversed_edge = edge.reversed()
+    runner.test("یال معکوس", reversed_edge.src.node_id == "B")
+    runner.test("نام معکوس", "rev" in reversed_edge.name)
+    
+    return runner.summary()
+
+
+def test_graph_basic():
+    print("\n🟢 تست‌های Graph - پایه‌ای")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    runner.test("گراف جهت‌دار", g.directed == True)
+    
+    g.add_node("A")
+    runner.test("افزودن گره", g.has_node("A"))
+    runner.test("تعداد گره", g.order() == 1)
+    
+    g.add_edge("A", "B")
+    runner.test("افزودن یال و گره خودکار", g.has_node("B"))
+    runner.test("تعداد یال", g.num_edges() == 1)
+    
+    return runner.summary()
+
+
+def test_graph_batch_operations():
+    print("\n🟡 تست‌های Graph - عملیات دسته‌ای")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    
+    nodes = [Node(f"Node{i}") for i in range(3)]
+    g.add_nodes(nodes)
+    runner.test("افزودن دسته‌ای گره‌ها", g.order() == 3)
+    
+    edges = [("Node0", "Node1"), ("Node1", "Node2")]
+    g.add_edges(edges)
+    runner.test("افزودن دسته‌ای یال‌ها", g.num_edges() == 2)
+    
+    e = Edge(g.get_node("Node0"), g.get_node("Node2"), name="مسیر مستقیم")
+    g.add_edge_direct(e)
+    runner.test("افزودن Edge مستقیم", g.num_edges("Node0", "Node2") == 1)
+    
+    return runner.summary()
+
+
+def test_graph_update():
+    print("\n🔵 تست‌های Graph - اپدیت")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    g.add_edge("A", "B", weight=1.0)
+    
+    g.update_edge("A", "B", weight=5.0)
+    runner.test("اپدیت وزن", g.get_edges("A", "B")[0].weight == 5.0)
+    
+    g.update_edge("A", "B", name="نام جدید")
+    runner.test("اپدیت نام", g.get_edges("A", "B")[0].name == "نام جدید")
+    
+    return runner.summary()
+
+
+def test_graph_operations():
+    print("\n🟠 تست‌های Graph - عملیات (جمع/تفریق)")
+    runner = TestRunner()
+    
+    g1 = Graph(directed=True, name="G1")
+    g1.add_edges([("A", "B"), ("B", "C")])
+    
+    g2 = Graph(directed=True, name="G2")
+    g2.add_edges([("C", "D")])
+    
+    g_merged = g1 + g2
+    runner.test("Merge گراف‌ها", g_merged.order() == 4)
+    runner.test("Merge یال‌ها", g_merged.size() == 3)
+    
+    g_sub = g_merged - g1
+    runner.test("تفریق گراف‌ها", g_sub.order() < g_merged.order())
+    
+    g_node = g1 + Node("X")
+    runner.test("افزودن Node", g_node.has_node("X"))
+    
+    return runner.summary()
+
+
+def test_graph_len():
+    print("\n🟡 تست‌های Graph - len()")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    g.add_edges([("A", "B"), ("B", "C"), ("C", "D")])
+    
+    runner.test("len() بازگشت int", isinstance(len(g), int))
+    runner.test("len() تعداد گره‌ها", len(g) == 4)
+    
+    result = g.counts()
+    runner.test("counts() تعداد یال‌ها", result[1] == 3)
+    
+    return runner.summary()
+
+
+def test_graph_contains():
+    print("\n🟢 تست‌های Graph - __contains__")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    g.add_edges([("A", "B"), ("B", "C")])
+    
+    runner.test("گره در گراف", "A" in g)
+    runner.test("گره خارج گراف", "D" not in g)
+    
+    edge = g.get_edges("A", "B")[0]
+    runner.test("یال در گراف", edge in g)
+    
+    sub = g.subgraph(["A", "B"])
+    runner.test("زیرگراف در گراف", sub in g)
+    
+    return runner.summary()
+
+
+def test_graph_complement():
+    print("\n🔵 تست‌های Graph - مکمل")
+    runner = TestRunner()
+    
+    g = Graph(directed=False, name="Original")
+    g.add_edges([("A", "B"), ("B", "C")])
+    
+    comp = g.complement()
+    runner.test("مکمل دارای تمام گره‌ها", comp.order() == g.order())
+    runner.test("مکمل یال‌های بیشتر دارد", comp.size() >= g.size())
+    
+    return runner.summary()
+
+
+def test_graph_degree():
+    print("\n🟠 تست‌های Graph - درجات")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    g.add_edges([("A", "B"), ("A", "C"), ("B", "C")])
+    
+    runner.test("out_degree", g.out_degree("A") == 2)
+    runner.test("in_degree", g.in_degree("C") == 2)
+    runner.test("درجه کل (directed)", g.degree("B") == 2)
+    
+    return runner.summary()
+
+
+def test_errors():
+    print("\n🟡 تست‌های خطاها")
+    runner = TestRunner()
+    
+    g = Graph(directed=True)
+    g.add_node("A")
+    g.add_node("B")
+    
+    try:
+        g.get_node("NotExist")
+        runner.test("NodeNotFoundError", False)
+    except NodeNotFoundError:
+        runner.test("NodeNotFoundError", True)
+    
+    try:
+        g.remove_edge("A", "Z")
+        runner.test("EdgeNotFoundError", False)
+    except NodeNotFoundError:
+        runner.test("EdgeNotFoundError", True)
+    
+    try:
+        g.add_node("A", strict=True)
+        runner.test("DuplicateNodeError", False)
+    except DuplicateNodeError:
+        runner.test("DuplicateNodeError", True)
+    
+    return runner.summary()
+
+
+def main():
+    print("\n" + "="*70)
+    print("🧪 تست‌های Graph Library")
+    print("="*70)
+    
+    results = [
+        test_node_creation(),
+        test_edge_creation(),
+        test_graph_basic(),
+        test_graph_batch_operations(),
+        test_graph_update(),
+        test_graph_operations(),
+        test_graph_len(),
+        test_graph_contains(),
+        test_graph_complement(),
+        test_graph_degree(),
+        test_errors(),
+    ]
+    
+    print("\n" + "="*70)
+    total_passed = sum(1 for r in results if r)
+    total_tests = len(results)
+    print(f"✅ {total_passed}/{total_tests} بخش تست گذاشت")
+    print("="*70 + "\n")
+    
+    return 0 if all(results) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

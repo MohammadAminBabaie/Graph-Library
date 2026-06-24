@@ -1,6 +1,8 @@
 # Graph Library — Production Dependencies
-# No external dependencies required!
-# Pure Python 3.9+
 
-# Development dependencies (optional)
-# See requirements-dev.txt
+# Core
+# (No external dependencies for basic Graph)
+
+# Advanced Features (Optional)
+numpy>=1.21.0          # Matrix operations
+scipy>=1.7.0           # Linear algebra (determinant, eigenvalues)

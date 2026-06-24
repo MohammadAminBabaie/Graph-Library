@@ -690,9 +690,13 @@ class Graph:
         else:
             return self.has_node(item)
 
-    def __len__(self) -> tuple[int, int]:
-        """بازگشت (تعداد_گره‌ها, تعداد_یال‌ها)"""
+    def counts(self) -> tuple[int, int]:
+        """بازگشت (تعداد_گره‌ها, تعداد_یال‌ها) در tuple"""
         return (self.order(), self.size())
+    
+    def __len__(self) -> int:
+        """بازگشت تعداد گره‌ها (Python convention)"""
+        return self.order()
 
     def __iter__(self) -> Iterator[Node]:
         """تکرار روی گره‌ها"""
